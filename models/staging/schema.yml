@@ -1,0 +1,143 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw data loaded from Telegram scraper and YOLO detection
+    schema: raw
+    tables:
+      - name: telegram_messages
+        description: Raw telegram messages from medical/pharmaceutical channels
+        columns:
+          - name: id
+            description: Auto-incrementing primary key
+          - name: message_id
+            description: Telegram message ID
+          - name: channel_name
+            description: Name of the Telegram channel
+          - name: message_date
+            description: Timestamp when message was posted
+          - name: message_text
+            description: Full text content of the message
+          - name: has_media
+            description: Boolean flag indicating if message has media
+          - name: image_path
+            description: Path to downloaded image file
+          - name: views
+            description: Number of views on the message
+          - name: forwards
+            description: Number of times message was forwarded
+          - name: is_reply
+            description: Boolean flag indicating if message is a reply
+          - name: reply_to_msg_id
+            description: ID of the message being replied to
+          - name: scraped_at
+            description: Timestamp when data was scraped
+          - name: source_file
+            description: JSON file from which this record was loaded
+      
+      - name: yolo_detections
+        description: YOLO object detection results from images
+        columns:
+          - name: id
+            description: Auto-incrementing primary key
+          - name: message_id
+            description: Message ID (links to telegram_messages)
+          - name: channel_name
+            description: Channel name
+          - name: image_path
+            description: Path to the analyzed image
+          - name: category
+            description: Image category (promotional/product_display/lifestyle/other)
+          - name: detected_objects
+            description: Comma-separated list of detected objects
+          - name: num_detections
+            description: Number of objects detected
+          - name: max_confidence
+            description: Highest confidence score
+          - name: detections_json
+            description: Full JSON of all detections
+          - name: loaded_at
+            description: Timestamp when data was loaded
+
+models:
+  - name: stg_telegram_messages
+    description: Cleaned and standardized telegram messages from staging layer
+    columns:
+      - name: message_id
+        description: Unique identifier for the message
+        tests:
+          - not_null
+      
+      - name: channel_name
+        description: Name of the Telegram channel
+        tests:
+          - not_null
+      
+      - name: message_timestamp
+        description: Full timestamp of when message was posted
+        tests:
+          - not_null
+      
+      - name: message_date
+        description: Date portion of message timestamp
+        tests:
+          - not_null
+      
+      - name: message_text
+        description: Cleaned and trimmed message text content
+      
+      - name: message_length
+        description: Character length of message text
+        tests:
+          - not_null
+      
+      - name: has_media
+        description: Flag indicating presence of any media
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      
+      - name: has_image
+        description: Flag indicating presence of image specifically
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      
+      - name: image_path
+        description: File path to downloaded image
+      
+      - name: view_count
+        description: Number of views (coalesced to 0 if null)
+        tests:
+          - not_null
+      
+      - name: forward_count
+        description: Number of forwards (coalesced to 0 if null)
+        tests:
+          - not_null
+      
+      - name: is_reply
+        description: Flag indicating if this is a reply to another message
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      
+      - name: channel_type
+        description: Categorized channel type (Pharmaceutical, Cosmetics, Medical, Other)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Pharmaceutical', 'Cosmetics', 'Medical', 'Other']
+      
+      - name: is_empty_message
+        description: Flag for messages with no text content
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]

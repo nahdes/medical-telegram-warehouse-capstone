@@ -1,0 +1,266 @@
+version: 2
+
+models:
+  # DIMENSION TABLES
+  - name: dim_channels
+    description: >
+      Dimension table containing information about Telegram channels.
+      One row per channel with aggregated metrics and metadata.
+    columns:
+      - name: channel_key
+        description: Surrogate key for the channel dimension
+        tests:
+          - unique
+          - not_null
+      
+      - name: channel_name
+        description: Name of the Telegram channel (natural key)
+        tests:
+          - unique
+          - not_null
+      
+      - name: channel_type
+        description: Category of channel (Pharmaceutical, Cosmetics, Medical, Other)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Pharmaceutical', 'Cosmetics', 'Medical', 'Other']
+      
+      - name: first_post_date
+        description: Date of the earliest message from this channel
+        tests:
+          - not_null
+      
+      - name: last_post_date
+        description: Date of the most recent message from this channel
+        tests:
+          - not_null
+      
+      - name: days_active
+        description: Number of days between first and last post
+      
+      - name: total_posts
+        description: Total number of messages from this channel
+        tests:
+          - not_null
+      
+      - name: total_posts_with_images
+        description: Number of messages containing images
+        tests:
+          - not_null
+      
+      - name: avg_posts_per_day
+        description: Average messages posted per day
+      
+      - name: avg_views
+        description: Average views per message
+      
+      - name: avg_forwards
+        description: Average forwards per message
+      
+      - name: max_views
+        description: Highest view count on a single message
+      
+      - name: total_views
+        description: Sum of all views across all messages
+      
+      - name: total_forwards
+        description: Sum of all forwards across all messages
+      
+      - name: avg_message_length
+        description: Average character length of messages
+      
+      - name: engagement_rate_pct
+        description: Percentage of messages with at least 1 view
+      
+      - name: image_content_pct
+        description: Percentage of messages containing images
+      
+      - name: created_at
+        description: Timestamp when this dimension record was created
+      
+      - name: updated_at
+        description: Timestamp when this dimension record was last updated
+
+  - name: dim_dates
+    description: >
+      Date dimension table for time-based analysis.
+      Contains one row per date with various calendar attributes.
+    columns:
+      - name: date_key
+        description: Surrogate key in YYYYMMDD format
+        tests:
+          - unique
+          - not_null
+      
+      - name: full_date
+        description: The actual date value
+        tests:
+          - unique
+          - not_null
+      
+      - name: day_of_month
+        description: Day number within the month (1-31)
+      
+      - name: day_of_week
+        description: Day number within the week (0=Sunday, 6=Saturday)
+      
+      - name: day_of_year
+        description: Day number within the year (1-366)
+      
+      - name: day_name
+        description: Full name of the day (e.g., Monday)
+      
+      - name: day_name_short
+        description: Short name of the day (e.g., Mon)
+      
+      - name: week_of_year
+        description: ISO week number (1-53)
+      
+      - name: year_week
+        description: Year and week in YYYY-WW format
+      
+      - name: month
+        description: Month number (1-12)
+      
+      - name: month_name
+        description: Full name of the month
+      
+      - name: month_name_short
+        description: Short name of the month (e.g., Jan)
+      
+      - name: year_month
+        description: Year and month in YYYY-MM format
+      
+      - name: quarter
+        description: Quarter number (1-4)
+      
+      - name: quarter_name
+        description: Quarter name (e.g., Q1)
+      
+      - name: year_quarter
+        description: Year and quarter in YYYY-QN format
+      
+      - name: year
+        description: Four-digit year
+      
+      - name: is_weekend
+        description: Flag indicating if date falls on weekend
+        tests:
+          - accepted_values:
+              values: [true, false]
+      
+      - name: is_weekday
+        description: Flag indicating if date falls on weekday
+        tests:
+          - accepted_values:
+              values: [true, false]
+      
+      - name: ethiopian_holiday
+        description: Name of Ethiopian holiday if applicable
+
+  # FACT TABLE
+  - name: fct_messages
+    description: >
+      Fact table containing one row per message with foreign keys to dimensions.
+      This is the core table for analytical queries.
+    columns:
+      - name: message_key
+        description: Surrogate key for the message fact
+        tests:
+          - unique
+          - not_null
+      
+      - name: message_id
+        description: Natural key - Telegram message ID
+        tests:
+          - not_null
+      
+      - name: channel_key
+        description: Foreign key to dim_channels
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_channels')
+              field: channel_key
+      
+      - name: date_key
+        description: Foreign key to dim_dates
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_dates')
+              field: date_key
+      
+      - name: message_timestamp
+        description: Full timestamp of message
+        tests:
+          - not_null
+      
+      - name: message_text
+        description: Full text content of the message
+      
+      - name: message_length
+        description: Character length of message text
+        tests:
+          - not_null
+      
+      - name: has_media
+        description: Flag indicating presence of media
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: has_image
+        description: Flag indicating presence of image
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: view_count
+        description: Number of views (measure)
+        tests:
+          - not_null
+      
+      - name: forward_count
+        description: Number of forwards (measure)
+        tests:
+          - not_null
+      
+      - name: forward_rate
+        description: Calculated metric - forwards per view
+      
+      - name: mentions_price
+        description: Flag for messages mentioning price information
+        tests:
+          - accepted_values:
+              values: [true, false]
+      
+      - name: mentions_availability
+        description: Flag for messages mentioning product availability
+        tests:
+          - accepted_values:
+              values: [true, false]
+      
+      - name: mentions_delivery
+        description: Flag for messages mentioning delivery/shipping
+        tests:
+          - accepted_values:
+              values: [true, false]
+      
+      - name: content_type
+        description: Categorization of message content
+        tests:
+          - accepted_values:
+              values: ['Image Only', 'Image with Text', 'Text Only', 'Empty']
+      
+      - name: engagement_category
+        description: Categorization based on view count
+        tests:
+          - accepted_values:
+              values: ['No Views', 'Low Engagement', 'Medium Engagement', 'High Engagement']
+      
+      - name: loaded_at
+        description: Timestamp when record was loaded into warehouse

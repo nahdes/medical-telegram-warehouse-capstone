@@ -1,0 +1,58 @@
+name: 'medical_warehouse'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'medical_warehouse'
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Configuring models
+models:
+  medical_warehouse:
+    # Staging models - cleaned and standardized raw data
+    staging:
+      +materialized: view
+      +schema: staging
+      +tags: ["staging"]
+    
+    # Marts - dimensional models (star schema)
+    marts:
+      +materialized: table
+      +schema: marts
+      +tags: ["marts"]
+      
+      # Core business logic
+      core:
+        +tags: ["core"]
+      
+      # Dimension tables
+      dimensions:
+        +tags: ["dimensions"]
+
+# Testing
+tests:
+  medical_warehouse:
+    +store_failures: true
+    +schema: test_failures
+
+# Documentation
+vars:
+  # Project-specific variables
+  start_date: '2024-01-01'
+  
+# Seeds configuration
+seeds:
+  medical_warehouse:
+    +schema: seeds
+    +tags: ["seeds"]

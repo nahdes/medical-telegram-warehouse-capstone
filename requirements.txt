@@ -1,0 +1,21 @@
+# Telegram API
+telethon>=1.36.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Data handling (optional for this task, but useful)
+pandas>=2.0.0
+
+# Image processing (for future tasks)
+Pillow>=10.0.0
+
+# Logging
+coloredlogs>=15.0.0
+
+# Cryptography (required by telethon)
+cryptg>=0.4.0
+
+# Orchestration
+dagster>=1.6.0
+dagster-webserver>=1.6.0
