@@ -3,10 +3,30 @@ FastAPI Analytics API for Medical Telegram Warehouse
 Exposes data warehouse insights through REST endpoints
 """
 
-from fastapi import FastAPI, HTTPException, Query, Path
+import os
+
+from fastapi import FastAPI, HTTPException, Query, Path, Depends, Request, Security, Response
+from fastapi_cache.decorator import cache
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from typing import List, Optional
 import uvicorn
+
+# caching and rate limiting
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+
+# simple API key auth
+API_KEY = os.getenv('API_KEY', 'changeme')
+api_key_header = APIKeyHeader(name='X-API-Key', auto_error=False)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail='Invalid or missing API key')
+    return True
 
 from api.database import get_db_session
 from api.schemas import (
@@ -60,6 +80,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(429, _rate_limit_exceeded_handler)
+
+
+@app.on_event("startup")
+def startup():
+    # set up simple in-memory cache (for prod, swap to redis)
+    FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
+
 
 # ============================================================================
 # HEALTH CHECK
@@ -111,9 +142,17 @@ async def health_check():
     Useful for identifying trending products and popular medications.
     """
 )
+@limiter.limit("10/minute")
+@cache(expire=60)
 async def top_products(
     limit: int = Query(
         default=10,
+        ge=1,
+        le=100,
+        description="Number of top products to return"
+    ),
+    authorized: bool = Depends(verify_api_key)
+):
         ge=1,
         le=100,
         description="Number of top products to return"
@@ -148,9 +187,15 @@ async def top_products(
     - Posting patterns
     """
 )
+@limiter.limit("20/minute")
+@cache(expire=60)
 async def channel_activity(
     channel_name: str = Path(
         ...,
+        description="Name of the Telegram channel (e.g., 'CheMed123')"
+    ),
+    authorized: bool = Depends(verify_api_key)
+):
         description="Name of the Telegram channel (e.g., 'CheMed123')"
     )
 ):
@@ -180,7 +225,11 @@ async def channel_activity(
     summary="List all channels",
     description="Returns a list of all channels with basic statistics"
 )
-async def list_channels():
+@limiter.limit("20/minute")
+@cache(expire=120)
+async def list_channels(
+    authorized: bool = Depends(verify_api_key)
+):
     """Get list of all channels with basic stats"""
     try:
         db = next(get_db_session())
@@ -210,9 +259,26 @@ async def list_channels():
     - Limit results
     """
 )
+@limiter.limit("20/minute")
+@cache(expire=30)
 async def search_messages_endpoint(
     query: str = Query(
         ...,
+        min_length=2,
+        description="Search keyword or phrase"
+    ),
+    channel: Optional[str] = Query(
+        None,
+        description="Filter by channel name (optional)"
+    ),
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum number of results to return"
+    ),
+    authorized: bool = Depends(verify_api_key)
+):
         min_length=2,
         description="Search keyword or phrase"
     ),
@@ -261,7 +327,11 @@ async def search_messages_endpoint(
     - YOLO detection insights
     """
 )
-async def visual_content_stats():
+@limiter.limit("10/minute")
+@cache(expire=120)
+async def visual_content_stats(
+    authorized: bool = Depends(verify_api_key)
+):
     """Get statistics about image usage and visual content"""
     try:
         db = next(get_db_session())
@@ -287,7 +357,11 @@ async def visual_content_stats():
     Answers: Do promotional images (with people) perform better than product-only images?
     """
 )
-async def image_category_performance():
+@limiter.limit("10/minute")
+@cache(expire=120)
+async def image_category_performance(
+    authorized: bool = Depends(verify_api_key)
+):
     """Compare performance metrics across image categories"""
     try:
         db = next(get_db_session())
@@ -297,6 +371,25 @@ async def image_category_performance():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ============================================================================
+# DASHBOARD
+# ============================================================================
+
+@app.get("/dashboard", tags=["Dashboard"], summary="Simple HTML dashboard", dependencies=[Depends(verify_api_key)])
+async def dashboard():
+    # placeholder dashboard; could be replaced with a more sophisticated app
+    html = """
+    <html>
+      <head><title>Medical Telegram Analytics Dashboard</title></head>
+      <body>
+        <h1>Dashboard</h1>
+        <p>Use the API endpoints to fetch data programmatically.</p>
+        <p>This page could embed charts using Plotly or redirect to a Streamlit app.</p>
+      </body>
+    </html>
+    """
+    return Response(content=html, media_type="text/html")
 
 # ============================================================================
 # RUN SERVER
