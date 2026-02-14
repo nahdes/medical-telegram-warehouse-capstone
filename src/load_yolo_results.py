@@ -83,6 +83,7 @@ class YOLOResultsLoader:
                     num_detections INTEGER,
                     max_confidence FLOAT,
                     detections_json TEXT,
+                    ocr_text TEXT,
                     loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
@@ -132,8 +133,8 @@ class YOLOResultsLoader:
                 INSERT INTO raw.yolo_detections (
                     message_id, channel_name, image_path, category,
                     detected_objects, num_detections, max_confidence,
-                    detections_json
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    detections_json, ocr_text
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             
             batch_data = [
@@ -145,7 +146,8 @@ class YOLOResultsLoader:
                     r['detected_objects'],
                     int(r['num_detections']),
                     float(r['max_confidence']),
-                    r['detections_json']
+                    r['detections_json'],
+                    r.get('ocr_text', '')
                 )
                 for r in results
             ]

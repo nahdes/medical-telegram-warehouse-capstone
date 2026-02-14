@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 try:
     from ultralytics import YOLO
     from PIL import Image
+    # OCR helper will be imported lazily later (optional dependency)
 except ImportError:
     print("ERROR: Required packages not installed!")
     print("Run: pip install ultralytics pillow")
@@ -146,19 +147,33 @@ class ImageDetector:
         logger.info(f"Found {len(image_files)} images to process")
         
         # Process each image
+        # try to import OCR helpers (optional)
+        try:
+            from ocr import extract_text_from_region
+        except ImportError:
+            extract_text_from_region = None  # OCR will be skipped
+
         for idx, (channel_name, image_path) in enumerate(image_files, 1):
             try:
                 # Extract message_id from filename
                 message_id = image_path.stem  # Filename without extension
-                
+
                 logger.info(f"[{idx}/{len(image_files)}] Processing: {channel_name}/{message_id}")
-                
+
                 # Run detection
                 detections = self.detect_objects(image_path)
-                
+
+                # Optionally run OCR on each bounding box
+                ocr_texts = []
+                if extract_text_from_region and detections:
+                    for d in detections:
+                        bbox = d.get('bbox', [])
+                        text = extract_text_from_region(image_path, bbox)
+                        ocr_texts.append(text)
+
                 # Categorize image
                 category, detected_classes, max_confidence = self.categorize_image(detections)
-                
+
                 # Store results
                 result = {
                     'message_id': message_id,
@@ -168,14 +183,15 @@ class ImageDetector:
                     'detected_objects': ', '.join(detected_classes),
                     'num_detections': len(detections),
                     'max_confidence': round(max_confidence, 4),
-                    'detections_json': str(detections)  # Full detection details
+                    'detections_json': str(detections),  # Full detection details
+                    'ocr_text': ' | '.join(ocr_texts) if ocr_texts else ''
                 }
-                
+
                 results.append(result)
-                
+
                 logger.info(f"  Category: {category} | Objects: {len(detections)} | "
                           f"Max Confidence: {max_confidence:.2f}")
-                
+
             except Exception as e:
                 logger.error(f"Error processing {image_path}: {e}")
                 continue
@@ -196,7 +212,7 @@ class ImageDetector:
             fieldnames = [
                 'message_id', 'channel_name', 'image_path', 'category',
                 'detected_objects', 'num_detections', 'max_confidence',
-                'detections_json'
+                'detections_json', 'ocr_text'
             ]
             
             with open(output_file, 'w', newline='', encoding='utf-8') as f:

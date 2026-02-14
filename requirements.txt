@@ -19,3 +19,32 @@ cryptg>=0.4.0
 # Orchestration
 dagster>=1.6.0
 dagster-webserver>=1.6.0
+
+# Computer Vision / OCR
+pytesseract>=0.3.10
+# Note: Tesseract executable must be installed separately on the host system.
+
+# OCR alternative (easyocr) if required in future
+# easyocr>=1.6.0
+
+# NLP
+spacy>=3.5.0
+
+# API enhancements
+fastapi-cache2>=0.1.0
+slowapi>=0.1.0
+
+# Database
+psycopg2-binary>=2.9.0
+
+# Dashboard / explainability
+streamlit>=1.24.0
+shap>=0.41.0
+
+# Testing
+pytest>=7.0.0
+requests>=2.31.0
+httpx>=0.24.0
+
+# Machine learning
+scikit-learn>=1.2.0

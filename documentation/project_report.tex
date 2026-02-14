@@ -1,0 +1,73 @@
+\documentclass[11pt]{article}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Enhancing the Medical Telegram Warehouse Capstone Project}
+\author{Capstone Team}
+\date{February 2026}
+
+\begin{document}
+
+\maketitle
+
+\section*{Abstract}
+This document outlines the enhancements made to the \emph{Medical Telegram Warehouse} repository. The improvements focus on computer vision for product recognition, OCR text extraction, natural language processing for price and product parsing, orchestration using Dagster, API hardening with caching, authentication and rate limiting, and real-time alerting with a minimal dashboard.
+
+\section{Introduction}
+The existing project scraped Telegram channels for medical product posts and performed basic YOLO-based object detection. The enhancement roadmap prioritized:
+\begin{enumerate}
+  \item Fine-tuning YOLO and adding OCR for text on packaging.
+  \item Building an NLP pipeline to extract products and prices.
+  \item Orchestrating the entire workflow using Dagster.
+  \item Strengthening the FastAPI service with caching, authentication and rate limiting.
+  \item Implementing alerting mechanisms and a rudimentary dashboard.
+\end{enumerate}
+
+\section{Computer Vision and OCR}
+The script \texttt{src/yolo_detect.py} was expanded:
+\begin{itemize}
+  \item Added optional integration with a newly created \texttt{src/ocr.py} module using \texttt{pytesseract}.
+  \item Detection results now include an \texttt{ocr_text} field containing the concatenated OCR outputs for bounding boxes.
+  \item CSV output and database loader \texttt{src/load_yolo_results.py} were updated with an \texttt{ocr_text} column.
+\end{itemize}
+
+\section{NLP Pipeline for Price/Product Extraction}
+A simple regex-based NLP module was written in \texttt{src/pipeline/transform.py}. It defines:
+\begin{itemize}
+  \item Price pattern detection and a small vocabulary of product terms.
+  \item A function to parse rows from the YOLO/OCR CSV and output structured records.
+\end{itemize}
+A loader script \texttt{src/load_price_results.py} inserts these parsed records into a new \texttt{raw.price_extractions} table.
+
+\section{Dagster Orchestration}
+The existing pipeline definition in \texttt{pipeline.py} was extended with:
+\begin{itemize}
+  \item A new \texttt{run_price_extraction} op executing the NLP loader.
+  \item An \texttt{send_alerts} op invoking \texttt{src/alerts.py} to post Slack notifications when thresholds are exceeded.
+  \item The main job was updated to include price extraction and alert steps in sequence.
+\end{itemize}
+
+\section{API Enhancements}
+The FastAPI application (\texttt{api/main.py}) was hardened:
+\begin{itemize}
+  \item Added API key verification using \texttt{X-API-Key} header.
+  \item Integrated \texttt{slowapi} for rate limiting per endpoint.
+  \item Utilized \texttt{fastapi-cache2} for in-memory caching with configurable expiration.
+  \item Added a \texttt{/dashboard} HTML endpoint as a placeholder global dashboard.
+  \item Schemas and queries were augmented to expose price extraction results.
+\end{itemize}
+
+\section{Real-time Alerts and Dashboard}
+A new alerts module allows threshold checks and posting to Slack. The Dagster pipeline invokes it after NLP extraction. A simple \texttt{/dashboard} route presents a bare-bones HTML page, paving the way for a more interactive visualization using Plotly or Streamlit.
+
+\section{Dependencies and Setup}
+The \texttt{requirements.txt} file was updated with additional packages: 
+\texttt{pytesseract}, \texttt{spacy}, \texttt{fastapi-cache2}, \texttt{slowapi}, etc. The environment must also include the Tesseract executable.
+
+\section{Conclusion}
+The enhancements delivered an end-to-end system capable of discovering products and prices in Telegram image posts, orchestrated via Dagster and exposed through a secure, rate-limited API. The modular design facilitates future upgrades such as YOLO fine-tuning, NER-based extraction, dashboard visualizations, and Dockerized deployment.
+
+\end{document}
