@@ -212,3 +212,27 @@ class ErrorResponse(BaseModel):
                 "detail": "Channel 'InvalidChannel' not found"
             }
         }
+
+
+# ============================================================================
+# PRICE / PRODUCT EXTRACTIONS
+# ============================================================================
+
+class PriceExtraction(BaseModel):
+    """Extracted products and prices from text/OCR"""
+    message_id: Optional[str]
+    channel_name: Optional[str]
+    products: List[str] = []
+    prices: List[str] = []
+    source_text: Optional[str]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message_id": "12345",
+                "channel_name": "CheMed123",
+                "products": ["paracetamol", "vitamin"],
+                "prices": ["100 ETB", "500 birr"],
+                "source_text": "paracetamol 100 ETB"
+            }
+        }
