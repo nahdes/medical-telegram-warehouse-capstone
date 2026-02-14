@@ -137,6 +137,22 @@ def run_yolo_enrichment(context: OpExecutionContext):
     _run_cmd(context=context, cmd=["python", "src/load_yolo_results.py"])
 
 
+@op
+def run_price_extraction(context: OpExecutionContext):
+    """
+    Run NLP-based product/price extraction from OCR results and load them.
+    """
+    csv_path = "data/processed/yolo_detections.csv"
+    _run_cmd(context=context, cmd=["python", "src/load_price_results.py", csv_path])
+
+
+
+@op
+def send_alerts(context: OpExecutionContext):
+    """Simple op to run threshold checks and notify."""
+    _run_cmd(context=context, cmd=["python", "src/alerts.py"])
+
+
 @job(hooks={notify_on_failure})
 def medical_telegram_warehouse_job():
     # Order:
@@ -145,6 +161,9 @@ def medical_telegram_warehouse_job():
     load_raw_to_postgres()
     run_dbt_transformations()
     run_yolo_enrichment()
+    run_price_extraction()
+    # check alerts after NLP extraction
+    send_alerts()
 
 
 # Daily schedule (default: 02:00 local time)
